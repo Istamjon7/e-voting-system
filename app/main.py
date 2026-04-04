@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
 from app.database import Base, engine
@@ -27,5 +28,6 @@ def startup_create_tables() -> None:
 
 
 app.include_router(api_router, prefix="/api")
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
