@@ -1,16 +1,20 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_db, require_admin
+from app.core.dependencies import get_db, require_admin, require_superuser
 from app.models.user import User
 from app.schemas.poll import PollCreate, PollUpdate, PollOut, PollWithOptions
 from app.schemas.option import OptionCreate, OptionOut
-from app.schemas.user import UserOut
+from app.schemas.user import UserOut, UserRoleUpdate
 from app.services.poll_service import PollService
 from app.repositories.user_repository import UserRepository
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
+
+# ─────────────────────────────────────────
+# Poll boshqaruvi  (admin + superuser)
+# ─────────────────────────────────────────
 
 @router.post("/polls", response_model=PollWithOptions, status_code=status.HTTP_201_CREATED)
 def create_poll(
@@ -58,11 +62,7 @@ def stop_poll(
     return PollService(db).stop_poll(poll_id)
 
 
-@router.post(
-    "/polls/{poll_id}/options",
-    response_model=OptionOut,
-    status_code=status.HTTP_201_CREATED,
-)
+@router.post("/polls/{poll_id}/options", response_model=OptionOut, status_code=status.HTTP_201_CREATED)
 def add_option(
     poll_id: int,
     payload: OptionCreate,
@@ -72,10 +72,7 @@ def add_option(
     return PollService(db).add_option(poll_id, payload.text)
 
 
-@router.delete(
-    "/polls/{poll_id}/options/{option_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
+@router.delete("/polls/{poll_id}/options/{option_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_option(
     poll_id: int,
     option_id: int,
@@ -91,3 +88,45 @@ def list_users(
     admin: User = Depends(require_admin),
 ):
     return UserRepository(db).get_all()
+
+
+# ─────────────────────────────────────────
+# Foydalanuvchi boshqaruvi  (faqat superuser)
+# ─────────────────────────────────────────
+
+@router.patch("/users/{user_id}/role", response_model=UserOut)
+def change_user_role(
+    user_id: int,
+    payload: UserRoleUpdate,
+    db: Session = Depends(get_db),
+    superuser: User = Depends(require_superuser),
+):
+    """Superuser istalgan foydalanuvchining rolini o'zgartiradi"""
+    user = UserRepository(db).get(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
+    if user.id == superuser.id:
+        raise HTTPException(status_code=400, detail="O'z rolingizni o'zgartira olmaysiz")
+
+    user.role = payload.role.value
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    superuser: User = Depends(require_superuser),
+):
+    """Superuser admin yoki oddiy foydalanuvchini o'chiradi"""
+    user = UserRepository(db).get(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
+    if user.id == superuser.id:
+        raise HTTPException(status_code=400, detail="O'zingizni o'chira olmaysiz")
+    if user.role == "superuser":
+        raise HTTPException(status_code=403, detail="Boshqa superuserni o'chirib bo'lmaydi")
+
+    UserRepository(db).delete(user_id)
