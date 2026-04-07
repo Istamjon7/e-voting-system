@@ -1,18 +1,37 @@
-# Python 3.10 asosida
-FROM python:3.10-slim
+# ── Stage 1: dependency builder ──────────────────────────────────────────────
+FROM python:3.10-slim AS builder
 
-# Ishchi papka
 WORKDIR /app
 
-# Kutubxonalarni o'rnatish
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
 
-# Loyiha fayllarini ko'chirish
+COPY requirements.txt .
+RUN pip install --upgrade pip && \
+    pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
+
+
+# ── Stage 2: production image ─────────────────────────────────────────────────
+FROM python:3.10-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Install compiled wheels from builder
+COPY --from=builder /app/wheels /wheels
+RUN pip install --no-cache /wheels/* && rm -rf /wheels
+
+# Copy project
 COPY . .
 
-# Port ochish
+# Create uploads directory
+RUN mkdir -p uploads/avatars
+
+# Entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 8000
 
-# Serverni ishga tushirish
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/entrypoint.sh"]
