@@ -14,8 +14,17 @@ class PollService:
         self.option_repo = OptionRepository(db)
         self.db = db
 
+    def get_all_polls(self) -> list[Poll]:
+        return self.poll_repo.get_all_polls()
+
     def get_active_polls(self) -> list[Poll]:
         return self.poll_repo.get_active_polls()
+
+    def get_polls_by_status(self, status: str) -> list[Poll]:
+        return self.poll_repo.get_by_status(status)
+
+    def get_all_polls_with_options(self) -> list[Poll]:
+        return self.poll_repo.get_all_with_options()
 
     def get_poll_with_options(self, poll_id: int) -> Poll:
         poll = self.poll_repo.get_with_options(poll_id)

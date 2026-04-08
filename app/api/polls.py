@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, get_current_user
@@ -12,11 +14,27 @@ router = APIRouter(prefix="/polls", tags=["Polls"])
 
 
 @router.get("", response_model=list[PollOut])
-def list_active_polls(
+def list_polls(
+    status: Optional[str] = Query(
+        default=None,
+        description="Filter: 'active' | 'draft' | 'closed' | bo'sh = hammasi"
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return PollService(db).get_active_polls()
+    """
+    Barcha polllar ro'yxati.
+    - status=active   → faqat faol polllar
+    - status=draft    → faqat draft polllar
+    - status=closed   → faqat yopilgan polllar
+    - status yo'q     → hammasi
+    """
+    service = PollService(db)
+    if status == "active":
+        return service.get_active_polls()
+    if status in ("draft", "closed"):
+        return service.get_polls_by_status(status)
+    return service.get_all_polls()
 
 
 @router.get("/{poll_id}", response_model=PollWithOptions)
@@ -25,6 +43,7 @@ def get_poll(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Bitta poll + variantlari"""
     return PollService(db).get_poll_with_options(poll_id)
 
 
@@ -35,6 +54,7 @@ def cast_vote(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Ovoz berish"""
     return VoteService(db).cast_vote(current_user.id, poll_id, payload)
 
 
@@ -44,4 +64,5 @@ def get_results(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Poll natijalari — har variant uchun ovoz soni va foiz"""
     return VoteService(db).get_results(poll_id)

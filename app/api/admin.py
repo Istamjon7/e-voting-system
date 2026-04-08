@@ -16,6 +16,15 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 # Poll boshqaruvi  (admin + superuser)
 # ─────────────────────────────────────────
 
+@router.get("/polls", response_model=list[PollWithOptions])
+def list_all_polls(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Admin: barcha polllar (draft + active + closed) + variantlari"""
+    return PollService(db).get_all_polls_with_options()
+
+
 @router.post("/polls", response_model=PollWithOptions, status_code=status.HTTP_201_CREATED)
 def create_poll(
     payload: PollCreate,
