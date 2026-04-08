@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: evoting-api
+    env: python
+    region: frankfurt
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash entrypoint.sh
+    healthCheckPath: /api/
+    envVars:
+      - key: DATABASE_URL
+        sync: false       # Render dashboard dan qo'lda kiritiladi
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 480
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: 7
+      - key: ALLOWED_ORIGINS
+        value: "*"
+      - key: POSTGRES_DB
+        value: evoting_db
+      - key: POSTGRES_USER
+        value: postgres
+      - key: POSTGRES_PASSWORD
+        sync: false

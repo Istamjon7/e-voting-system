@@ -7,6 +7,8 @@ from fastapi.staticfiles import StaticFiles
 from app.api.router import api_router
 from app.config import settings
 
+# Render da ephemeral (vaqtinchalik) filesystem — restart da fayllar o'chadi
+# Avatar upload lokal ishlaydi, production da cloud storage (S3/Cloudinary) tavsiya qilinadi
 os.makedirs("uploads/avatars", exist_ok=True)
 
 app = FastAPI(
@@ -24,4 +26,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix="/api")
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+# uploads papkasi mavjud bo'lsa mount qiladi
+if os.path.isdir("uploads"):
+    app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

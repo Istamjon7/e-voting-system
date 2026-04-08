@@ -2,7 +2,11 @@
 set -e
 
 echo ">>> Running Alembic migrations..."
-alembic upgrade head
+if ! alembic upgrade head; then
+    echo "ERROR: Alembic migration failed! Exiting."
+    exit 1
+fi
+echo ">>> Migrations complete."
 
 echo ">>> Starting server..."
 exec gunicorn app.main:app \
