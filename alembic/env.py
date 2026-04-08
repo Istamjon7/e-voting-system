@@ -1,7 +1,13 @@
+import os
+import sys
 from logging.config import fileConfig
+from pathlib import Path
 
 from sqlalchemy import engine_from_config, pool
 from alembic import context
+
+# app/ modulini Python path ga qo'shish (Render uchun muhim)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Alembic Config object
 config = context.config
@@ -10,8 +16,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# app/config.py → pydantic-settings → .env faylni o'qiydi
-from app.config import settings
+# Modellarni import qilish (autogenerate uchun kerak)
 from app.database import Base
 from app.models import user, poll, option, vote  # noqa: F401
 
@@ -19,7 +24,23 @@ target_metadata = Base.metadata
 
 
 def get_url() -> str:
-    return settings.DATABASE_URL
+    """
+    DATABASE_URL ni environment variable dan o'qiydi.
+    Neon.tech va boshqa providerlar 'postgres://' yuboradi,
+    SQLAlchemy 2.x esa 'postgresql://' talab qiladi — shuning uchun replace.
+    """
+    url = os.getenv("DATABASE_URL", "")
+    if not url:
+        # Lokal ishlab chiqish uchun .env fayldan o'qish
+        try:
+            from app.config import settings
+            url = settings.DATABASE_URL
+        except Exception:
+            raise RuntimeError(
+                "DATABASE_URL environment variable is not set!"
+            )
+    # Neon / Heroku / Render → postgres:// → postgresql://
+    return url.replace("postgres://", "postgresql://", 1)
 
 
 def run_migrations_offline() -> None:
