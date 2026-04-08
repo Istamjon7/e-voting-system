@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, get_current_user
 from app.models.user import User
+from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserOut, UserUpdateMe
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -15,6 +16,14 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_SIZE_MB = 2
+
+
+@router.get("", response_model=list[UserOut])
+def list_all_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return UserRepository(db).get_all()
 
 
 @router.get("/me", response_model=UserOut)
